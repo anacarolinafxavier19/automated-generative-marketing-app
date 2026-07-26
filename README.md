@@ -1,4 +1,4 @@
-# Generative Marketing App
+# Automated Generative Marketing Collateral
 
 Prototype backend for automated, personalized B2B marketing collateral. It takes
 sender/receiver context PDFs, retrieves relevant grounding, and generates a tailored
@@ -42,11 +42,6 @@ a fixed shape (two documents in, one constrained JSON object out):
    (`sender_logo`, `receiver_logo`, `hero`) for the real file paths extracted in step 1, so
    the response can never point at an asset the model made up.
 
-A static demo UI (`http://localhost:8000/ui/`, `app/static/index.html`) sits in front of
-steps 1–5 for manual demoing — it's a thin browser client over the same two endpoints,
-with no separate frontend build/framework, so it doesn't change anything about the
-pipeline above.
-
 Every external dependency (LLM, embeddings, vector store, metadata DB, file storage) sits
 behind a small interface for exactly this reason — see [Why this stack](#why-this-stack)
 for the local-vs-production mapping.
@@ -86,10 +81,7 @@ that would need a new adapter to point this at Azure OpenAI instead.
 
 ## Setup
 
-Requires Python 3.11+. Run these from the repo root (the directory containing
-`pyproject.toml`) — running `pip install -e ".[dev]"` from any other directory
-(e.g. `.claude/skills`) fails with "does not appear to be a Python project" since
-pip installs relative to your current directory, not the repo.
+Requires Python 3.11+.
 
 ```bash
 python3.12 -m venv .venv
@@ -111,13 +103,7 @@ The API is at `http://localhost:8000` (interactive docs at `/docs`).
 
 ## Try it
 
-**Fastest way:** open `http://localhost:8000/ui/` in a browser — a small demo page for
-uploading both PDFs and generating an article without curl. It talks to the exact same
-two endpoints below and defaults to the same fixture company names the smoke test uses,
-so you can point its file pickers at `tests/fixtures/sender_company_context.pdf` and
-`tests/fixtures/receiver_company_context.pdf`.
-
-Or drive the API directly. Upload context PDFs for a sender and a receiver company:
+Upload context PDFs for a sender and a receiver company:
 
 ```bash
 curl -X POST "localhost:8000/companies/AcmeAI/documents?role=sender" \
