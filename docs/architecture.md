@@ -1,13 +1,19 @@
-# Design: Automated Generative Marketing Collateral
+# Design: Generative Marketing App
 
-## Problem
+## Problem & goal
 
 The client's editors manually: (1) research a Sender and Receiver company from their
 websites/collateral, (2) write a bridging B2B article, (3) source logos/images, and
-(4) hand-lay-out the result into a fixed publishing template. This should become one
-pipeline: upload context PDFs → retrieve relevant grounding → generate a structured,
-constraint-respecting article JSON → (downstream, out of scope here) a renderer maps
-that JSON into the actual template.
+(4) hand-lay-out the result into a fixed publishing template.
+
+**Goal:** turn steps 1–3 into one pipeline — upload context PDFs → retrieve relevant
+grounding → generate a structured, constraint-respecting article JSON — so a downstream
+renderer (out of scope here) can map that JSON straight into the actual template. The
+expected output of every `/generate` call is a single JSON object matching the schema in
+`app/generation/schema.py`, grounded only in what was actually uploaded for that sender
+and receiver — never invented. See [`README.md`](../README.md#core-genai-concepts-this-applies)
+for how each stage below maps onto standard GenAI/RAG building blocks (chunking,
+embeddings, retrieval, grounding, structured output, self-correction).
 
 ## Pipeline
 
@@ -16,7 +22,7 @@ flowchart TD
     subgraph Ingestion["Ingestion — POST /companies/{name}/documents?role="]
         A[PDF upload] --> B[Parse: text + tables + images<br/>PyMuPDF]
         B --> C[Chunk text<br/>~500 tokens, overlap]
-        C --> D[Embed chunks]
+        C --> D[Embed chunks<br/>Gemini embedding API]
         D --> E[(Vector store<br/>chunks + embeddings)]
         B --> F[Extract images,<br/>tag largest page-1 image as logo]
         F --> G[(File store<br/>raw PDF + images)]
@@ -38,7 +44,7 @@ flowchart TD
     end
 ```
 
-Two design choices worth calling out:
+Design choices worth calling out:
 
 1. **The LLM never invents an asset path.** It only picks from a fixed vocabulary of
    image *slots* (`hero` / `sender_logo` / `receiver_logo`). A deterministic
@@ -48,6 +54,17 @@ Two design choices worth calling out:
 2. **Grounding, not free generation.** The system prompt requires every claim to trace
    back to retrieved Sender/Receiver context, and to generalize rather than fabricate
    when the context doesn't support a specific claim.
+3. **Retrieval is scoped per company *and* role.** The vector store query filters on
+   both `company_name` and `role` at once, so a sender's chunks can never leak into the
+   receiver's retrieved context (or vice versa) even if both companies uploaded PDFs
+   with overlapping vocabulary. Combining two metadata fields in one query means the
+   filter has to be expressed as a compound (`$and`) condition, not two independent
+   equality checks.
+4. **The repair pass is deterministic-triggered, not model-initiated.** The LLM doesn't
+   decide when to retry; `validate_constraints` checks hard, countable rules (word
+   limits, hex color format) that an LLM can't reliably self-police, and only then is a
+   second call made with the violations attached. This keeps the one-repair-pass
+   behavior predictable and boundable, rather than an open-ended agent loop.
 
 ## Azure production architecture
 
