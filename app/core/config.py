@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     def ensure_dirs(self) -> None:
         self.storage_root.mkdir(parents=True, exist_ok=True)
         self.vector_store_path.mkdir(parents=True, exist_ok=True)
+        (self.storage_root / "documents").mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache

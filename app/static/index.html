@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Generative Marketing App — Demo</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #e2e5ea;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --ok: #15803d;
+    --err: #b91c1c;
+    --err-bg: #fef2f2;
+    --ok-bg: #f0fdf4;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 28px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 { margin: 0 0 4px; font-size: 1.4rem; }
+  header p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    margin: 0 0 4px;
+    font-size: 1.02rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card .hint { margin: 0 0 14px; color: var(--muted); font-size: 0.85rem; }
+  .step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .step-badge.done { background: var(--ok); color: #fff; }
+  label { display: block; font-size: 0.82rem; font-weight: 600; margin: 10px 0 4px; }
+  input[type="text"], textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text);
+  }
+  textarea { min-height: 76px; resize: vertical; }
+  input[type="file"] { width: 100%; font-size: 0.85rem; margin-top: 2px; }
+  button {
+    margin-top: 14px;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:disabled { background: #b9c2d0; cursor: not-allowed; }
+  .status {
+    margin-top: 10px;
+    font-size: 0.82rem;
+    padding: 8px 10px;
+    border-radius: 6px;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.ok { background: var(--ok-bg); color: var(--ok); }
+  .status.err { background: var(--err-bg); color: var(--err); }
+  .status.pending { background: #eef2ff; color: #3730a3; }
+
+  #resultCard { min-height: 240px; }
+  .empty-state {
+    color: var(--muted);
+    font-size: 0.88rem;
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .article-preview {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .article-hero {
+    padding: 28px 26px 22px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--art-primary, #0a192f), var(--art-secondary, #00d26a));
+  }
+  .article-logos { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .article-logos img { height: 34px; max-width: 120px; object-fit: contain; background: #fff; border-radius: 6px; padding: 3px; }
+  .article-hero h3 { margin: 0 0 8px; font-size: 1.5rem; line-height: 1.25; }
+  .article-hero p { margin: 0; opacity: 0.92; font-size: 0.98rem; }
+  .article-body { padding: 22px 26px; background: #fff; }
+  .article-section { margin-bottom: 16px; }
+  .article-section:last-child { margin-bottom: 0; }
+  .article-section h4 {
+    margin: 0 0 4px;
+    font-size: 0.95rem;
+    color: var(--art-primary, #1a1d23);
+  }
+  .article-section p { margin: 0; font-size: 0.88rem; line-height: 1.5; color: #333; }
+  .article-cta {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    background: var(--art-primary, #1a1d23);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .article-footer {
+    padding: 12px 26px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    font-size: 0.76rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 13px; height: 13px;
+    border: 2px solid #c7d2fe;
+    border-top-color: #4338ca;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Generative Marketing App — Demo</h1>
+  <p>Upload sender + receiver context PDFs, then generate a grounded, tailored article. Talks directly to the FastAPI backend running on this same server.</p>
+</header>
+
+<main>
+  <div>
+    <div class="card">
+      <h2><span class="step-badge" id="badge-sender">1</span> Upload sender context</h2>
+      <p class="hint">The company pitching. Uses the same fixture as the smoke test by default.</p>
+      <label for="senderCompany">Company name</label>
+      <input type="text" id="senderCompany" value="NexusVisionAI" />
+      <label for="senderFile">Context PDF</label>
+      <input type="file" id="senderFile" accept="application/pdf" />
+      <button id="senderBtn" onclick="uploadDoc('sender')">Upload sender PDF</button>
+      <div class="status" id="senderStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-badge" id="badge-receiver">2</span> Upload receiver context</h2>
+      <p class="hint">The company being pitched to.</p>
+      <label for="receiverCompany">Company name</label>
+      <input type="text" id="receiverCompany" value="ApexGlobalLogistics" />
+      <label for="receiverFile">Context PDF</label>
+      <input type="file" id="receiverFile" accept="application/pdf" />
+      <button id="receiverBtn" onclick="uploadDoc('receiver')">Upload receiver PDF</button>
+      <div class="status" id="receiverStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-badge" id="badge-generate">3</span> Generate article</h2>
+      <p class="hint">Both uploads above must succeed first.</p>
+      <label for="brief">Creative brief</label>
+      <textarea id="brief">Pitch NexusVision computer vision for reducing Apex manual rescan costs.</textarea>
+      <button id="generateBtn" onclick="generateArticle()" disabled>Generate article</button>
+      <div class="status" id="generateStatus"></div>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <h2>Result</h2>
+    <div id="resultBody">
+      <div class="empty-state">Upload both PDFs and generate an article to see it rendered here.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const uploaded = { sender: false, receiver: false };
+
+  function setStatus(el, kind, html) {
+    el.className = 'status show ' + kind;
+    el.innerHTML = html;
+  }
+
+  function setBadgeDone(id) {
+    const b = document.getElementById(id);
+    b.classList.add('done');
+    b.textContent = '✓';
+  }
+
+  function maybeEnableGenerate() {
+    document.getElementById('generateBtn').disabled = !(uploaded.sender && uploaded.receiver);
+  }
+
+  async function uploadDoc(role) {
+    const companyEl = document.getElementById(role + 'Company');
+    const fileEl = document.getElementById(role + 'File');
+    const statusEl = document.getElementById(role + 'Status');
+    const btn = document.getElementById(role + 'Btn');
+    const company = companyEl.value.trim();
+    const file = fileEl.files[0];
+
+    if (!company) { setStatus(statusEl, 'err', 'Enter a company name.'); return; }
+    if (!file) { setStatus(statusEl, 'err', 'Choose a PDF file.'); return; }
+
+    btn.disabled = true;
+    setStatus(statusEl, 'pending', '<span class="spinner"></span>Uploading and parsing…');
+
+    const form = new FormData();
+    form.append('files', file);
+
+    try {
+      const resp = await fetch(`/companies/${encodeURIComponent(company)}/documents?role=${role}`, {
+        method: 'POST',
+        body: form,
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        setStatus(statusEl, 'err', `Upload failed (HTTP ${resp.status}): ${escapeHtml(data.detail || resp.statusText)}`);
+        uploaded[role] = false;
+      } else {
+        const doc = (data.documents || [])[0] || {};
+        setStatus(statusEl, 'ok', `Parsed — ${doc.chunk_count ?? '?'} chunks, ${doc.image_count ?? '?'} image(s) extracted.`);
+        uploaded[role] = true;
+        setBadgeDone('badge-' + role);
+      }
+    } catch (e) {
+      setStatus(statusEl, 'err', `Network error: ${escapeHtml(String(e))}`);
+      uploaded[role] = false;
+    } finally {
+      btn.disabled = false;
+      maybeEnableGenerate();
+    }
+  }
+
+  async function generateArticle() {
+    const senderCompany = document.getElementById('senderCompany').value.trim();
+    const receiverCompany = document.getElementById('receiverCompany').value.trim();
+    const prompt = document.getElementById('brief').value.trim();
+    const statusEl = document.getElementById('generateStatus');
+    const btn = document.getElementById('generateBtn');
+    const resultBody = document.getElementById('resultBody');
+
+    btn.disabled = true;
+    setStatus(statusEl, 'pending', '<span class="spinner"></span>Retrieving grounding and generating… (can take several seconds)');
+    resultBody.innerHTML = '<div class="empty-state"><span class="spinner"></span>Generating…</div>';
+
+    try {
+      const resp = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender_company: senderCompany, receiver_company: receiverCompany, prompt }),
+      });
+      const data = await resp.json().catch(() => ({}));
+
+      if (!resp.ok) {
+        const detail = data.detail || resp.statusText;
+        setStatus(statusEl, 'err', `Generate failed (HTTP ${resp.status}): ${escapeHtml(detail)}`);
+        resultBody.innerHTML = `<div class="empty-state">${escapeHtml(detail)}</div>`;
+        return;
+      }
+
+      setBadgeDone('badge-generate');
+      setStatus(statusEl, 'ok', `Done in ${data.metrics?.latency_seconds?.toFixed(1) ?? '?'}s` +
+        (data.metrics?.repair_pass_needed ? ' (one repair pass was needed)' : ''));
+      renderArticle(data);
+    } catch (e) {
+      setStatus(statusEl, 'err', `Network error: ${escapeHtml(String(e))}`);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderArticle(data) {
+    const article = data.article;
+    const resultBody = document.getElementById('resultBody');
+    const logoSlot = (name) => article.image_slots.find(s => s.slot_name === name);
+    const senderLogo = logoSlot('sender_logo');
+    const receiverLogo = logoSlot('receiver_logo');
+
+    const logosHtml = [senderLogo, receiverLogo]
+      .filter(s => s && s.asset_ref)
+      .map(s => `<img src="/${s.asset_ref}" alt="${s.slot_name}" />`)
+      .join('');
+
+    const sectionsHtml = article.body_sections.map(s => `
+      <div class="article-section">
+        <h4>${escapeHtml(s.heading)}</h4>
+        <p>${escapeHtml(s.text)}</p>
+      </div>
+    `).join('');
+
+    resultBody.innerHTML = `
+      <div class="article-preview" style="--art-primary:${escapeAttr(article.theme.primary_color)}; --art-secondary:${escapeAttr(article.theme.secondary_color)}">
+        <div class="article-hero">
+          ${logosHtml ? `<div class="article-logos">${logosHtml}</div>` : ''}
+          <h3>${escapeHtml(article.headline)}</h3>
+          <p>${escapeHtml(article.subheadline)}</p>
+        </div>
+        <div class="article-body">
+          ${sectionsHtml}
+          <div class="article-cta">${escapeHtml(article.cta)}</div>
+        </div>
+        <div class="article-footer">
+          <span>Retrieved ${data.retrieval.sender_chunks_used} sender + ${data.retrieval.receiver_chunks_used} receiver chunks</span>
+          <span>${data.metrics.final_violations.length ? data.metrics.final_violations.length + ' unresolved layout violation(s)' : 'All layout constraints satisfied'}</span>
+        </div>
+      </div>
+      <details>
+        <summary>Raw JSON response</summary>
+        <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+      </details>
+    `;
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+  function escapeAttr(str) {
+    return String(str).replace(/[^#a-zA-Z0-9]/g, '');
+  }
+</script>
+</body>
+</html>
