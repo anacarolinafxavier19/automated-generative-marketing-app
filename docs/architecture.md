@@ -6,14 +6,19 @@ The client's editors manually: (1) research a Sender and Receiver company from t
 websites/collateral, (2) write a bridging B2B article, (3) source logos/images, and
 (4) hand-lay-out the result into a fixed publishing template.
 
-**Goal:** turn steps 1–3 into one pipeline — upload context PDFs → retrieve relevant
-grounding → generate a structured, constraint-respecting article JSON — so a downstream
-renderer (out of scope here) can map that JSON straight into the actual template. The
-expected output of every `/generate` call is a single JSON object matching the schema in
-`app/generation/schema.py`, grounded only in what was actually uploaded for that sender
-and receiver — never invented. See [`README.md`](../README.md#core-genai-concepts-this-applies)
+**Goal:** turn steps 1–4 into one pipeline — get context (upload for the sender;
+upload or live web research for the receiver) → generate a structured,
+constraint-respecting article JSON (text, images, optional tables) → render it. The
+expected output of every `/generate` call is a single JSON object matching the schema
+in `app/generation/schema.py`, grounded only in real content for that sender and
+receiver — never invented. `studio/` renders it into an actual brochure — the
+downstream renderer originally out of scope here now exists as a real prototype, not
+just a plan; see [`README.md`](../README.md#core-genai-concepts-this-applies)
 for how each stage below maps onto standard GenAI/RAG building blocks (chunking,
-embeddings, retrieval, grounding, structured output, self-correction).
+embeddings, retrieval, grounding, structured output, self-correction), and
+[`agentic-ai-stack.md`](agentic-ai-stack.md) for a technology-by-technology breakdown
+against the fuller set of agentic-AI cores (including the ones this app deliberately
+doesn't implement, like tool use and planning).
 
 ## Pipeline
 
@@ -30,11 +35,17 @@ flowchart TD
     end
 
     subgraph Generation["Generation — POST /generate"]
-        I[sender_company, receiver_company, prompt] --> J[Retrieve top-k chunks<br/>per company+role]
-        E --> J
-        J --> K[Build grounded prompt:<br/>sender ctx + receiver ctx + brief + schema]
-        K --> L[LLM structured output<br/>ArticleDraft JSON]
-        L --> M{Constraints OK?<br/>word limits, hex colors}
+        I[sender_company, receiver_company, prompt] --> J1[Retrieve sender top-k chunks]
+        E --> J1
+        I --> Q{Receiver has an<br/>uploaded document?}
+        Q -- yes --> J2[Retrieve receiver top-k chunks]
+        E --> J2
+        Q -- no --> R[Research receiver live:<br/>Gemini Google Search grounding]
+        J1 --> K[Build grounded prompt:<br/>sender ctx + receiver ctx + brief + schema]
+        J2 --> K
+        R --> K
+        K --> L[LLM structured output<br/>ArticleDraft JSON incl. optional tables]
+        L --> M{Constraints OK?<br/>word/row/column limits, hex colors}
         M -- no --> N[One repair pass:<br/>feed violations back to LLM]
         N --> M
         M -- yes --> O[Resolve image slots to real<br/>asset paths from metadata store]
@@ -65,12 +76,28 @@ Design choices worth calling out:
    limits, hex color format) that an LLM can't reliably self-police, and only then is a
    second call made with the violations attached. This keeps the one-repair-pass
    behavior predictable and boundable, rather than an open-ended agent loop.
+5. **The receiver-document-vs-live-research decision is made once, by application
+   code, before generation starts — not by the model mid-reasoning.** A single check
+   (`metadata_store.list_documents(receiver_company, role="receiver")`) picks the
+   branch; the LLM is never given the option to call the search tool itself. This
+   keeps the "one real tool call, one fixed decision point" scope boundary explicit —
+   see [`agentic-ai-stack.md`](agentic-ai-stack.md#35-tool-use--the-one-place-this-app-actually-calls-an-external-tool)
+   for why that boundary matters. Practical consequence: grounded search sits on a much
+   stricter quota than plain generation on Gemini's free tier. `CompanyResearchClient`
+   handles this with one free fallback (Tavily's search API, if `TAVILY_API_KEY` is
+   set) rather than retrying Gemini or silently ungrounding itself; only without that
+   key does this path return a clear 502 (upload a receiver PDF instead).
 
 ## Azure production architecture
 
-Same pipeline, cloud-native and horizontally scalable. The prototype's swappable
-interfaces (`LLMClient`, `VectorStore`, `EmbeddingClient`, `FileStore`,
-`MetadataStore` — see `app/`) map directly onto these managed services:
+Same pipeline, cloud-native and horizontally scalable. `FileStore` and `MetadataStore`
+(`app/storage/`) are the prototype's swappable interfaces and map directly onto Blob
+Storage / Cosmos DB below. The LLM, embeddings, and vector store have no custom
+interface layer — they're LangChain clients constructed directly in
+`app/dependencies.py` — so their production mapping is a matter of swapping that one
+file's client construction, not implementing a new adapter. See
+[`agentic-ai-stack.md`](agentic-ai-stack.md) for what each of these pieces is doing in
+agentic-AI terms.
 
 ```mermaid
 flowchart TD
@@ -122,9 +149,18 @@ Key Vault for all secrets (no keys in app config); App Insights traces each LLM 
 
 ## What's out of scope for this prototype (and why)
 
-- **Layout rendering** (turning the article JSON into an actual PDF/InDesign file) —
-  this project produces the JSON that *maps into* the template, not the renderer itself.
-- **Multi-template support / brand-rule engine** — the schema in `schema.py` is
-  representative; production would load the client's real template definitions.
+- **Production-grade layout rendering** — `studio/` renders the article JSON into an
+  actual styled brochure (print-to-PDF via the browser), which covers the prototype
+  need, but it's a single hardcoded layout, not a real InDesign/PDF pipeline with
+  print-accurate typography, pagination, or bleed/margin handling.
+- **Multi-template support / brand-rule engine** — the schema in `schema.py` and
+  `studio/`'s rendering are both representative of *a* template; production would load
+  the client's real template definitions and support switching between several.
 - **Async ingestion** — the prototype processes uploads synchronously for simplicity;
   the Azure design above decouples this, as described.
+- **Retry/backoff on receiver web research** — a quota/rate limit on Gemini's Google
+  Search grounding tool is not retried with backoff. It does have one alternate
+  provider: `CompanyResearchClient` falls back to Tavily's free-tier search API
+  (`TAVILY_API_KEY` in `.env`) on a 429, still under the same "never invent" grounding
+  rule; only when that's unset (or itself fails) does the request surface a 502 with
+  the upload-a-receiver-PDF workaround.

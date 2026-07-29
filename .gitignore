@@ -1,11 +1,10 @@
 __pycache__/
-*.claude/
+.claude/settings.local.json
 *.pyc
 .venv/
 venv/
 .env
-storage/
-!storage/.gitkeep
+/storage/
 *.db
 .pytest_cache/
 .DS_Store

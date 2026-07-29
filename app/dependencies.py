@@ -11,6 +11,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langsmith import Client as LangSmithClient
 
 from app.core.config import get_settings
+from app.generation.research import CompanyResearchClient
 from app.storage.file_store import FileStore, LocalFileStore
 from app.storage.metadata_db import MetadataStore
 
@@ -65,3 +66,18 @@ def get_langsmith_client() -> LangSmithClient | None:
     if get_settings().langchain_tracing_v2:
         return LangSmithClient()
     return None
+
+
+@lru_cache
+def get_research_client() -> CompanyResearchClient:
+    settings = get_settings()
+    if not settings.gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="GEMINI_API_KEY is not configured. Set it in .env to enable receiver company research.",
+        )
+    return CompanyResearchClient(
+        api_key=settings.gemini_api_key,
+        model=settings.gemini_model,
+        tavily_api_key=settings.tavily_api_key or None,
+    )

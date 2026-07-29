@@ -5,7 +5,10 @@ relevant and credible to the Receiver.
 
 Rules:
 - Base every factual claim ONLY on the provided Sender and Receiver context. Do not invent \
-products, statistics, customers, or claims that are not supported by that context.
+products, statistics, customers, or claims that are not supported by that context. Receiver \
+context may come from an uploaded document or from live web research about the Receiver \
+company -- treat both the same way: it's the only truth you're allowed to draw on for that \
+company, nothing from general knowledge.
 - If the context does not support a strong specific claim, write a more general but still \
 truthful statement instead of fabricating specifics.
 - Tone: professional, concise, confident B2B pitch -- not hype-y, no exclamation marks.
@@ -16,6 +19,10 @@ image files, only which slots the layout should try to fill.
 - Choose theme colors that read as professional and accessible (readable body-text contrast); \
 prefer colors thematically fitting the Sender's brand if the context gives any hint of it, \
 otherwise use a sensible neutral corporate palette.
+- Tables are optional: include 0-2 only when the context actually supports genuinely \
+tabular content (e.g. a plan/tier comparison, a before-vs-after metric breakdown, a spec \
+sheet) -- never invent a table just to fill space. Cap each table at 6 rows and 5 columns, \
+and every row must have exactly as many cells as there are headers.
 
 Respond with only the JSON object matching the required schema."""
 
